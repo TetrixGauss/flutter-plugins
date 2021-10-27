@@ -84,6 +84,11 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
             typesToRequest.insert(dataTypeLookUp(key: keyString))
         }
 
+
+        if #available(iOS 13.0, *) {
+            typesToRequest.insert(HKSeriesType.heartbeat())
+        }
+
         if #available(iOS 11.0, *) {
             healthStore.requestAuthorization(toShare: nil, read: typesToRequest) { (success, error) in
                 result(success)
@@ -93,6 +98,59 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
             result(false)// Handle the error here.
         }
     }
+
+
+
+    var count = 0
+
+    @available(iOS 13.0, *)
+    func adar(sample : HKHeartbeatSeriesSample, group: DispatchGroup) -> [String:Any] {
+        count+=1
+        print("___________________     \(count)     _____________________")
+        group.enter()
+
+        let g = DispatchGroup()
+
+        var beatToBeatData = [NSDictionary]()
+        g.enter()
+        let query = HKHeartbeatSeriesQuery(heartbeatSeries: sample) {
+            (query, timeSinceSeriesStart, precededByGap, done, error) in
+
+            guard error == nil else {
+                print("Failed querying the raw heartbeat data: \(String(describing: error))")
+                return
+            }
+            beatToBeatData.append([
+                "\"timeSinceSeriesStart\"": timeSinceSeriesStart,
+                "\"precededByGap\"": precededByGap
+            ])
+
+
+            if done {
+                print(beatToBeatData)
+                g.leave()
+            }
+        }
+
+        HKHealthStore().execute(query)
+
+        g.wait()
+
+        let res: [String:Any] = [
+                                  "uuid": "\(sample.uuid)",
+                                  "value": sample.count,
+                                  "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
+                                  "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
+                                  "source_id": sample.sourceRevision.source.bundleIdentifier,
+                                  "source_name": sample.sourceRevision.source.name,
+                                  "metadata": ["\"samples\"": beatToBeatData]
+                              ]
+
+        group.leave()
+        return res
+    }
+
+
 
     func getData(call: FlutterMethodCall, result: @escaping FlutterResult) {
         let arguments = call.arguments as? NSDictionary
@@ -108,6 +166,87 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         let predicate = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: .strictStartDate)
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: true)
 
+
+        if #available(iOS 13, *), String(describing: dataType.self) == "HKQuantityTypeIdentifierHeartRateVariabilitySDNN" {
+            print(dataType)
+            _ = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: [])
+
+            print("withStart: \(dateFrom) end: \(dateTo)")
+
+
+            let dispatchQueue = DispatchQueue(label: "taskQueue") // serial queue
+            let semaphore = DispatchSemaphore(value: 1)
+
+            let group = DispatchGroup()
+
+            var theSamples : [HKHeartbeatSeriesSample] = []
+
+            group.enter()
+            let heartBeatSeriesSample = HKSampleQuery(sampleType: HKSeriesType.heartbeat(), predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { [self]
+                (query, results, error) in
+                guard let samples = results, ((samples.first as? HKHeartbeatSeriesSample) != nil) else {
+                    print("Failed: no samples collected")
+                    return
+                }
+                print("found \(samples.count) samples")
+
+                // assign samples to theSamples
+                samples.map { opt in
+                    if let s = opt as? HKHeartbeatSeriesSample{
+                        theSamples.append(s)
+                    }
+                }
+
+                print("the samples: \(theSamples)")
+
+                group.leave()
+
+                return
+//                result(samples.map { optionalSample -> [String:Any] in
+//
+//
+//                    if let sample = optionalSample as? HKHeartbeatSeriesSample {
+//                        var counter  = 0
+//                        let flags = DispatchWorkItemFlags.noQoS
+//
+//                        return self.adar(sample: sample)
+//
+////                        return dispatchQueue.sync(execute: { () -> [String:Any] in
+////
+////
+////                            return [:]
+////                        })
+//                    } else {
+//                        return [:]
+//                    }
+//
+//                })
+
+            }
+            HKHealthStore().execute(heartBeatSeriesSample)
+
+            group.wait()
+
+            print("fetching raw data of samples")
+
+            var theResults: [[String:Any]] = []
+
+            for optionalSample in theSamples {
+                let sample = optionalSample as! HKHeartbeatSeriesSample
+                let dic : [String:Any] = adar(sample: sample, group: group)
+
+                theResults.append(dic)
+            }
+
+
+
+            group.wait()
+            result(theResults)
+        }
+
+
+
+
         let query = HKSampleQuery(sampleType: dataType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sortDescriptor]) {
             x, samplesOrNil, error in
 
@@ -122,7 +261,8 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                         "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
                         "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                         "source_id": sample.sourceRevision.source.bundleIdentifier,
-                        "source_name": sample.sourceRevision.source.name
+                        "source_name": sample.sourceRevision.source.name,
+                        "metadata": sample.metadata
                     ]
                 })
                 return
@@ -260,6 +400,38 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
     }
 }
 
-
+                //                                     print("___________________________________________________")
+                //                                      print("sample: \(sample)")
+                //                                      var beatToBeatData = [NSDictionary]()
+                //
+                //                                      let query = HKHeartbeatSeriesQuery(heartbeatSeries: sample) {
+                //                                          (query, timeSinceSeriesStart, precededByGap, done, error) in
+                //                                          guard error == nil else {
+                //                                              print("Failed querying the raw heartbeat data: \(String(describing: error))")
+                //                                              return
+                //                                          }
+                //                                          beatToBeatData.append([
+                //                                              "timeSinceSeriesStart": timeSinceSeriesStart,
+                //                                              "precededByGap": precededByGap
+                //                                          ])
+                //                                          if done {
+                //                                              let res: NSDictionary = [
+                //                                                                        "uuid": "\(sample.uuid)",
+                //                                                                        "value": sample.count,
+                //                                                                        "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
+                //                                                                        "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
+                //                                                                        "source_id": sample.sourceRevision.source.bundleIdentifier,
+                //                                                                        "source_name": sample.sourceRevision.source.name,
+                //                                                                        "metadata": beatToBeatData
+                //                                                                    ]
+                //
+                //                                              print("res: \(res)")
+                //                                              semaphore.signal()
+                ////                                              return res
+                //                                          }
+                //
+                //                                      }
+                //                                      HKHealthStore().execute(query)
+                //                                      semaphore.wait()
 
 
