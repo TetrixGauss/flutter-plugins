@@ -148,7 +148,6 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
     @available(iOS 13.0, *)
     func adar(sample : HKHeartbeatSeriesSample, group: DispatchGroup) -> [String:Any] {
         count+=1
-        print("___________________     \(count)     _____________________")
         group.enter()
 
         let g = DispatchGroup()
@@ -169,7 +168,6 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
 
 
             if done {
-                print(beatToBeatData)
                 g.leave()
             }
         }
