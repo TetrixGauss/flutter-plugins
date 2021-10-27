@@ -1,5 +1,6 @@
 part of health;
 
+
 /// A [HealthDataPoint] object corresponds to a data point captures from
 /// GoogleFit or Apple HealthKit
 class HealthDataPoint {
@@ -12,6 +13,7 @@ class HealthDataPoint {
   String _deviceId;
   String _sourceId;
   String _sourceName;
+  Map<dynamic, dynamic> _metadata;
 
   HealthDataPoint(
       this._value,
@@ -22,7 +24,9 @@ class HealthDataPoint {
       this._platform,
       this._deviceId,
       this._sourceId,
-      this._sourceName) {
+      this._sourceName,
+      this._metadata
+      ) {
     // set the value to minutes rather than the category
     // returned by the native API
     if (type == HealthDataType.MINDFULNESS ||
@@ -42,29 +46,32 @@ class HealthDataPoint {
   factory HealthDataPoint.fromJson(json) => HealthDataPoint(
       json['value'],
       HealthDataTypeJsonValue.keys.toList()[
-          HealthDataTypeJsonValue.values.toList().indexOf(json['data_type'])],
+      HealthDataTypeJsonValue.values.toList().indexOf(json['data_type'])],
       HealthDataUnitJsonValue.keys.toList()[
-          HealthDataUnitJsonValue.values.toList().indexOf(json['unit'])],
+      HealthDataUnitJsonValue.values.toList().indexOf(json['unit'])],
       DateTime.parse(json['date_from']),
       DateTime.parse(json['date_to']),
       PlatformTypeJsonValue.keys.toList()[
-          PlatformTypeJsonValue.values.toList().indexOf(json['platform_type'])],
+      PlatformTypeJsonValue.values.toList().indexOf(json['platform_type'])],
       json['platform_type'],
       json['source_id'],
-      json['source_name']);
+      json['source_name'],
+      jsonDecode(json['metadata'])
+  );
 
   /// Converts the [HealthDataPoint] to a json object
   Map<String, dynamic> toJson() => {
-        'value': value,
-        'data_type': HealthDataTypeJsonValue[type],
-        'unit': HealthDataUnitJsonValue[unit],
-        'date_from': DateFormat('yyyy-MM-dd HH:mm:ss').format(dateFrom),
-        'date_to': DateFormat('yyyy-MM-dd HH:mm:ss').format(dateTo),
-        'platform_type': PlatformTypeJsonValue[platform],
-        'device_id': deviceId,
-        'source_id': sourceId,
-        'source_name': sourceName
-      };
+    'value': value,
+    'data_type': HealthDataTypeJsonValue[type],
+    'unit': HealthDataUnitJsonValue[unit],
+    'date_from': DateFormat('yyyy-MM-dd HH:mm:ss').format(dateFrom),
+    'date_to': DateFormat('yyyy-MM-dd HH:mm:ss').format(dateTo),
+    'platform_type': PlatformTypeJsonValue[platform],
+    'device_id': deviceId,
+    'source_id': sourceId,
+    'source_name': sourceName,
+    'metadata': jsonEncode(_metadata)
+  };
 
   /// Converts the [HealthDataPoint] to a string
   String toString() => '${this.runtimeType} - '
@@ -75,7 +82,8 @@ class HealthDataPoint {
       'dataType: $type,'
       'platform: $platform'
       'sourceId: $sourceId,'
-      'sourceName: $sourceName,';
+      'sourceName: $sourceName,'
+      'metadata: $metadata,';
 
   /// Get the quantity value of the data point
   num get value => _value;
@@ -114,6 +122,8 @@ class HealthDataPoint {
   /// the data point was extracted
   String get sourceName => _sourceName;
 
+  Map<dynamic, dynamic> get metadata => _metadata;
+
   /// An equals (==) operator for comparing two data points
   /// This makes it possible to remove duplicate data points.
   @override
@@ -127,7 +137,8 @@ class HealthDataPoint {
         this.platform == o.platform &&
         this.deviceId == o.deviceId &&
         this.sourceId == o.sourceId &&
-        this.sourceName == o.sourceName;
+        this.sourceName == o.sourceName &&
+        this.metadata == o.metadata;
   }
 
   /// Override required due to overriding the '==' operator

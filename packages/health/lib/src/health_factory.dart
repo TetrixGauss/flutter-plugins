@@ -7,7 +7,7 @@ class HealthFactory {
   final _deviceInfo = DeviceInfoPlugin();
 
   static PlatformType _platformType =
-      Platform.isAndroid ? PlatformType.ANDROID : PlatformType.IOS;
+  Platform.isAndroid ? PlatformType.ANDROID : PlatformType.IOS;
 
   /// Check if a given data type is available on the platform
   bool isDataTypeAvailable(HealthDataType dataType) =>
@@ -84,7 +84,7 @@ class HealthFactory {
     for (var i = 0; i < weights.length; i++) {
       final bmiValue = weights[i].value.toDouble() / (h * h);
       final x = HealthDataPoint(bmiValue, dataType, unit, weights[i].dateFrom,
-          weights[i].dateTo, _platformType, _deviceId!, '', '');
+          weights[i].dateTo, _platformType, _deviceId!, '', '',{});
 
       bmiHealthPoints.add(x);
     }
@@ -95,22 +95,22 @@ class HealthFactory {
   /// Saves health data into the HealthKit or Google Fit store
   ///
   /// Returns a Future of true if successful, a Future of false otherwise
-  /// 
+  ///
   /// Parameters
-  /// 
-  /// [value]  
+  ///
+  /// [value]
   ///   value of the health data in double
-  /// [type]   
-  ///   the value's HealthDataType 
-  /// [startTime] 
-  ///   a DateTime object that specifies the start time when this data value is measured. 
+  /// [type]
+  ///   the value's HealthDataType
+  /// [startTime]
+  ///   a DateTime object that specifies the start time when this data value is measured.
   ///   It must be equal to or earlier than [endTime]
   /// [endTime]
   ///   a DateTime object that specifies the end time when this value is measured.
   ///   It must be equal to or later than [startTime].
-  ///   Simply set [endTime] equal to [startTime] 
+  ///   Simply set [endTime] equal to [startTime]
   ///   if the value is measured only at a specific point in time.
-  /// 
+  ///
   Future<bool> writeHealthData(double value, HealthDataType type,
       DateTime startTime, DateTime endTime) async {
     if (startTime.isAfter(endTime))
@@ -179,6 +179,7 @@ class HealthFactory {
         final DateTime to = DateTime.fromMillisecondsSinceEpoch(e['date_to']);
         final String sourceId = e["source_id"];
         final String sourceName = e["source_name"];
+        final metadata = e["metadata"] ?? {};
         return HealthDataPoint(
           value,
           dataType,
@@ -189,6 +190,7 @@ class HealthFactory {
           _deviceId!,
           sourceId,
           sourceName,
+          metadata,
         );
       }).toList();
     } else {
