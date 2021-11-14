@@ -166,7 +166,11 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
 
 
         if #available(iOS 13, *), String(describing: dataType.self) == "HKQuantityTypeIdentifierHeartRateVariabilitySDNN" {
+            print(dataType)
             _ = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: [])
+
+            print("withStart: \(dateFrom) end: \(dateTo)")
+
 
             let dispatchQueue = DispatchQueue(label: "taskQueue") // serial queue
             let semaphore = DispatchSemaphore(value: 1)
@@ -180,14 +184,19 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                 (query, results, error) in
                 guard let samples = results, ((samples.first as? HKHeartbeatSeriesSample) != nil) else {
                     print("Failed: no samples collected")
+                    group.leave()
                     return
                 }
+                print("found \(samples.count) samples")
+
                 // assign samples to theSamples
                 samples.map { opt in
                     if let s = opt as? HKHeartbeatSeriesSample{
                         theSamples.append(s)
                     }
                 }
+
+                print("the samples: \(theSamples)")
 
                 group.leave()
 
@@ -197,6 +206,8 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
 
             group.wait()
 
+            print("fetching raw data of samples")
+
             var theResults: [[String:Any]] = []
 
             for optionalSample in theSamples {
@@ -205,8 +216,6 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
 
                 theResults.append(dic)
             }
-
-
 
             group.wait()
             result(theResults)
