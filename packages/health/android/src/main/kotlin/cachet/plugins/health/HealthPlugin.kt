@@ -1,6 +1,7 @@
 package cachet.plugins.health
 
 import android.app.Activity
+import android.content.Context
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.fitness.Fitness
 import com.google.android.gms.fitness.FitnessOptions
@@ -34,6 +35,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
     private var result: Result? = null
     private var handler: Handler? = null
     private var activity: Activity? = null
+    private var context: Context? = null
 
     private var BODY_FAT_PERCENTAGE = "BODY_FAT_PERCENTAGE"
     private var HEIGHT = "HEIGHT"
@@ -55,6 +57,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
     override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, CHANNEL_NAME)
         channel?.setMethodCallHandler(this)
+        context = flutterPluginBinding.applicationContext;
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -267,7 +270,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
     }
 
     private fun getData(call: MethodCall, result: Result) {
-        if (activity == null) {
+        if (context == null) {
             result.success(null)
             return
         }
@@ -289,10 +292,10 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
                     typesBuilder.accessSleepSessions(FitnessOptions.ACCESS_READ)
                 }
                 val fitnessOptions = typesBuilder.build()
-                val googleSignInAccount = GoogleSignIn.getAccountForExtension(activity!!.applicationContext, fitnessOptions)
+                val googleSignInAccount = GoogleSignIn.getAccountForExtension(context!!.applicationContext, fitnessOptions)
 
                 if (dataType != DataType.TYPE_SLEEP_SEGMENT) {
-                    val response = Fitness.getHistoryClient(activity!!.applicationContext, googleSignInAccount)
+                    val response = Fitness.getHistoryClient(context!!.applicationContext, googleSignInAccount)
                             .readData(DataReadRequest.Builder()
                                     .read(dataType)
                                     .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS)
@@ -312,7 +315,8 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
                         )
                     }
 
-                    activity!!.runOnUiThread { result.success(healthData) }
+//                    activity!!.runOnUiThread { result.success(healthData) }
+                    Handler(context!!.mainLooper).run { result.success(healthData) }
                 } else {
                     // request to the sessions for sleep data
                     val request = SessionReadRequest.Builder()
@@ -321,7 +325,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
                             .readSessionsFromAllApps()
                             .includeSleepSessions()
                             .build()
-                    Fitness.getSessionsClient(activity!!.applicationContext, googleSignInAccount)
+                    Fitness.getSessionsClient(context!!.applicationContext, googleSignInAccount)
                             .readSession(request)
                             .addOnSuccessListener { response ->
                                 var healthData: MutableList<Map<String, Any?>> = mutableListOf()
@@ -365,16 +369,16 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
                                         }
                                     }
                                 }
-                                activity!!.runOnUiThread { result.success(healthData) }
+                                Handler(context!!.mainLooper).run { result.success(healthData) }
                             }
                             .addOnFailureListener { exception ->
-                                activity!!.runOnUiThread { result.success(null) }
+                                Handler(context!!.mainLooper).run { result.success(null) }
                                 Log.i("FLUTTER_HEALTH::ERROR", exception.message ?: "unknown error")
                                 Log.i("FLUTTER_HEALTH::ERROR", exception.stackTrace.toString())
                             }
                 }
             } catch (e3: Exception) {
-                activity!!.runOnUiThread { result.success(null) }
+                Handler(context!!.mainLooper).run { result.success(null) }
             }
         }
     }
@@ -396,7 +400,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
 
     /// Called when the "requestAuthorization" is invoked from Flutter
     private fun requestAuthorization(call: MethodCall, result: Result) {
-        if (activity == null) {
+        if (context == null) {
             result.success(false)
             return
         }
@@ -404,7 +408,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
         val optionsToRegister = callToHealthTypes(call)
         mResult = result
 
-        val isGranted = GoogleSignIn.hasPermissions(GoogleSignIn.getLastSignedInAccount(activity), optionsToRegister)
+        val isGranted = GoogleSignIn.hasPermissions(GoogleSignIn.getLastSignedInAccount(context), optionsToRegister)
 
         /// Not granted? Ask for permission
         if (!isGranted && activity != null) {
