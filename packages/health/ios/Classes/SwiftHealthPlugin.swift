@@ -2,12 +2,12 @@ import Flutter
 import UIKit
 import HealthKit
 
-
 public class SwiftHealthPlugin: NSObject, FlutterPlugin {
 
     let healthStore = HKHealthStore()
     var healthDataTypes = [HKSampleType]()
     var heartRateEventTypes = Set<HKSampleType>()
+    var seriesData = Set<HKSampleType>()
     var allDataTypes = Set<HKSampleType>()
     var dataTypesDict: [String: HKSampleType] = [:]
     var unitDict: [String: HKUnit] = [:]
@@ -146,7 +146,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
     var count = 0
 
     @available(iOS 13.0, *)
-    func adar(sample : HKHeartbeatSeriesSample, group: DispatchGroup) -> [String:Any] {
+    func fetchHeartbeats(sample : HKHeartbeatSeriesSample, group: DispatchGroup) -> [String:Any] {
         count+=1
         group.enter()
 
@@ -162,8 +162,8 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                 return
             }
             beatToBeatData.append([
-                "\"timeSinceSeriesStart\"": timeSinceSeriesStart,
-                "\"precededByGap\"": precededByGap
+                "timeSinceSeriesStart": timeSinceSeriesStart,
+                "precededByGap": precededByGap
             ])
 
 
@@ -183,7 +183,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                                   "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
                                   "source_id": sample.sourceRevision.source.bundleIdentifier,
                                   "source_name": sample.sourceRevision.source.name,
-                                  "metadata": ["\"samples\"": beatToBeatData]
+                                  "metadata": ["samples": beatToBeatData]
                               ]
 
         group.leave()
@@ -207,8 +207,8 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         let predicate = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: .strictStartDate)
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
 
-        if #available(iOS 13, *), String(describing: dataType.self) == "HKQuantityTypeIdentifierHeartRateVariabilitySDNN" {
-            print(dataType)
+        if #available(iOS 13, *), dataTypeKey == HEART_BEAT_SERIES {
+
             _ = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: [])
 
             print("withStart: \(dateFrom) end: \(dateTo)")
@@ -254,7 +254,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
 
             for optionalSample in theSamples {
                 let sample = optionalSample as! HKHeartbeatSeriesSample
-                let dic : [String:Any] = adar(sample: sample, group: group)
+                let dic : [String:Any] = fetchHeartbeats(sample: sample, group: group)
 
                 theResults.append(dic)
             }
@@ -365,6 +365,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         unitDict[FORCED_EXPIRATORY_VOLUME] = HKUnit.liter()
         unitDict[HEART_RATE] = HKUnit.init(from: "count/min")
         unitDict[HEART_RATE_VARIABILITY_SDNN] = HKUnit.secondUnit(with: .milli)
+        unitDict[HEART_BEAT_SERIES] = HKUnit.count()
         unitDict[HEIGHT] = HKUnit.meter()
         unitDict[RESTING_HEART_RATE] = HKUnit.init(from: "count/min")
         unitDict[STEPS] = HKUnit.count()
@@ -431,11 +432,15 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
                 ])
         }
 
+        if #available(iOS 13.0 , *){
+            dataTypesDict[HEART_BEAT_SERIES] = HKSampleType.seriesType(forIdentifier: HKDataTypeIdentifierHeartbeatSeries)!
+
+            seriesData = Set([
+                HKSampleType.seriesType(forIdentifier: HKDataTypeIdentifierHeartbeatSeries)!,
+            ])
+        }
+
         // Concatenate heart events and health data types (both may be empty)
-        allDataTypes = Set(heartRateEventTypes + healthDataTypes)
+        allDataTypes = Set(heartRateEventTypes + healthDataTypes + seriesData)
     }
 }
-
-
-
-
