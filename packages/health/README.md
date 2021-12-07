@@ -42,6 +42,7 @@ NB: For Android, your app _needs_ to have Google Fit installed and have access t
 | LOW_HEART_RATE_EVENT        | NO_UNIT                 | yes         |              | Requires Apple Watch                                        |
 | IRREGULAR_HEART_RATE_EVENT  | NO_UNIT                 | yes         |              | Requires Apple Watch                                        |
 | HEART_RATE_VARIABILITY_SDNN | MILLISECONDS            | yes         |              | Requires Apple Watch                                        |
+| HEART_BEAT_SERIES           | COUNT                   | yes         |              | Requires Apple Watch                                        |
 
 
 ## Setup
