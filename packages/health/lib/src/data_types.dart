@@ -13,6 +13,7 @@ enum HealthDataType {
   BODY_TEMPERATURE,
   HEART_RATE,
   HEART_RATE_VARIABILITY_SDNN,
+  HEART_BEAT_SERIES,
   HEIGHT,
   RESTING_HEART_RATE,
   STEPS,
@@ -52,6 +53,7 @@ const List<HealthDataType> _dataTypeKeysIOS = [
   HealthDataType.ELECTRODERMAL_ACTIVITY,
   HealthDataType.HEART_RATE,
   HealthDataType.HEART_RATE_VARIABILITY_SDNN,
+  HealthDataType.HEART_BEAT_SERIES,
   HealthDataType.HEIGHT,
   HealthDataType.HIGH_HEART_RATE_EVENT,
   HealthDataType.IRREGULAR_HEART_RATE_EVENT,
@@ -130,6 +132,7 @@ const Map<HealthDataType, HealthDataUnit> _dataTypeToUnit = {
   HealthDataType.LOW_HEART_RATE_EVENT: HealthDataUnit.NO_UNIT,
   HealthDataType.IRREGULAR_HEART_RATE_EVENT: HealthDataUnit.NO_UNIT,
   HealthDataType.HEART_RATE_VARIABILITY_SDNN: HealthDataUnit.MILLISECONDS,
+  HealthDataType.HEART_BEAT_SERIES: HealthDataUnit.COUNT,
 };
 
 const HealthDataTypeJsonValue = {
@@ -144,6 +147,7 @@ const HealthDataTypeJsonValue = {
   HealthDataType.BODY_TEMPERATURE: 'body_temperature',
   HealthDataType.HEART_RATE: 'heart_rate',
   HealthDataType.HEART_RATE_VARIABILITY_SDNN: 'heart_rate_variability_sdnn',
+  HealthDataType.HEART_BEAT_SERIES: 'heart_beat_series',
   HealthDataType.HEIGHT: 'height',
   HealthDataType.RESTING_HEART_RATE: 'resting_heart_rate',
   HealthDataType.STEPS: 'steps',
