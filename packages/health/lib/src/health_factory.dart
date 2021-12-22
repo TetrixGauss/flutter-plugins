@@ -7,7 +7,7 @@ class HealthFactory {
   final _deviceInfo = DeviceInfoPlugin();
 
   static PlatformType _platformType =
-  Platform.isAndroid ? PlatformType.ANDROID : PlatformType.IOS;
+      Platform.isAndroid ? PlatformType.ANDROID : PlatformType.IOS;
 
   /// Check if a given data type is available on the platform
   bool isDataTypeAvailable(HealthDataType dataType) =>
