@@ -102,7 +102,9 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         }
 
         if #available(iOS 11.0, *) {
-            healthStore.requestAuthorization(toShare: typesToRequest, read: typesToRequest) { (success, error) in
+        // from health 3.3.1
+//         healthStore.requestAuthorization(toShare: typesToRequest, read: typesToRequest) { (success, error) in
+            healthStore.requestAuthorization(toShare: nil, read: typesToRequest) { (success, error) in
                 result(success)
             }
         }
