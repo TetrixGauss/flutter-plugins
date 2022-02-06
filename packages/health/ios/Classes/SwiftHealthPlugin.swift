@@ -194,21 +194,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
 
 
 
-    func getData(call: FlutterMethodCall, result: @escaping FlutterResult) {
-        let arguments = call.arguments as? NSDictionary
-        let dataTypeKey = (arguments?["dataTypeKey"] as? String) ?? "DEFAULT"
-        let startDate = (arguments?["startDate"] as? NSNumber) ?? 0
-        let endDate = (arguments?["endDate"] as? NSNumber) ?? 0
-        let limit = (arguments?["limit"] as? Int) ?? HKObjectQueryNoLimit
-
-        // Convert dates from milliseconds to Date()
-        let dateFrom = Date(timeIntervalSince1970: startDate.doubleValue / 1000)
-        let dateTo = Date(timeIntervalSince1970: endDate.doubleValue / 1000)
-
-        let dataType = dataTypeLookUp(key: dataTypeKey)
-        let predicate = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: .strictStartDate)
-        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
-
+    fileprivate func handleHeartBeats(_ dataTypeKey: String, _ dateFrom: Date, _ dateTo: Date, _ predicate: NSPredicate, _ result: FlutterResult) {
         if #available(iOS 13, *), dataTypeKey == HEART_BEAT_SERIES {
 
             _ = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: [])
@@ -264,28 +250,59 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
             group.wait()
             result(theResults)
         }
+    }
 
+    func getData(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        let arguments = call.arguments as? NSDictionary
+        let dataTypeKey = (arguments?["dataTypeKey"] as? String) ?? "DEFAULT"
+//        print("-----------------------------" + dataTypeKey)
+        let startDate = (arguments?["startDate"] as? NSNumber) ?? 0
+        let endDate = (arguments?["endDate"] as? NSNumber) ?? 0
+        let limit = (arguments?["limit"] as? Int) ?? HKObjectQueryNoLimit
 
+        // Convert dates from milliseconds to Date()
+        let dateFrom = Date(timeIntervalSince1970: startDate.doubleValue / 1000)
+        let dateTo = Date(timeIntervalSince1970: endDate.doubleValue / 1000)
+
+        let dataType = dataTypeLookUp(key: dataTypeKey)
+        let predicate = HKQuery.predicateForSamples(withStart: dateFrom, end: dateTo, options: .strictStartDate)
+        let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+
+        handleHeartBeats(dataTypeKey, dateFrom, dateTo, predicate, result)
 
         let query = HKSampleQuery(sampleType: dataType, predicate: predicate, limit: limit, sortDescriptors: [sortDescriptor]) {
             x, samplesOrNil, error in
 
             switch samplesOrNil {
             case let (samples as [HKQuantitySample]) as Any:
-
                 DispatchQueue.main.async {
                     result(samples.map { sample -> NSDictionary in
                         let unit = self.unitLookUp(key: dataTypeKey)
 
-                        return [
-                            "uuid": "\(sample.uuid)",
-                            "value": sample.quantity.doubleValue(for: unit),
-                            "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
-                            "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
-                            "source_id": sample.sourceRevision.source.bundleIdentifier,
-                            "source_name": sample.sourceRevision.source.name,
-                            "metadata": sample.metadata
-                        ]
+                        if (dataTypeKey.elementsEqual(self.BLOOD_OXYGEN)) {
+                            let string : [String: Any] = sample.metadata!
+                            let obj = string.values.first! as! HKQuantity
+                            let val = obj.doubleValue(for: HKUnit.pascal())
+                            return [
+                                "uuid": "\(sample.uuid)",
+                                "value": sample.quantity.doubleValue(for: unit),
+                                "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
+                                "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
+                                "source_id": sample.sourceRevision.source.bundleIdentifier,
+                                "source_name": sample.sourceRevision.source.name,
+                                "metadata": [string.keys.first!: String(format: "%.2f", val/1000) + " kPa"]
+                            ]
+                        } else {
+                            return [
+                                "uuid": "\(sample.uuid)",
+                                "value": sample.quantity.doubleValue(for: unit),
+                                "date_from": Int(sample.startDate.timeIntervalSince1970 * 1000),
+                                "date_to": Int(sample.endDate.timeIntervalSince1970 * 1000),
+                                "source_id": sample.sourceRevision.source.bundleIdentifier,
+                                "source_name": sample.sourceRevision.source.name,
+                                "metadata": sample.metadata
+                            ]
+                        }
                     })
                 }
 
